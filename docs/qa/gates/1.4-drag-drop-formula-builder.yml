@@ -1,0 +1,16 @@
+schema: 1
+story: '1.4'
+gate: CONCERNS
+status_reason: 'Critical accessibility path needs explicit testing criteria for keyboard navigation.'
+reviewer: 'Quinn'
+updated: '2025-08-29T07:05:00Z'
+top_issues:
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'No explicit test criteria for keyboard navigation flow'
+    suggested_action: 'Add specific keyboard navigation test scenarios'
+  - id: 'REQ-001'
+    severity: low
+    finding: 'Maximum metric limit not specified numerically'
+    suggested_action: 'Define exact max metrics (e.g., 10 or 15) in acceptance criteria'
+waiver: { active: false }

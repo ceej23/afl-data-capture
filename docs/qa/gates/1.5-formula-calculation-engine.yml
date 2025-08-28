@@ -1,0 +1,12 @@
+schema: 1
+story: '1.5'
+gate: PASS
+status_reason: 'Core engine story well-defined with performance targets and test coverage requirements.'
+reviewer: 'Quinn'
+updated: '2025-08-29T07:05:00Z'
+top_issues:
+  - id: 'ARCH-001'
+    severity: low
+    finding: 'WASM mentioned but not definitive for performance path'
+    suggested_action: 'Create spike to validate if WASM needed for <100ms target'
+waiver: { active: false }

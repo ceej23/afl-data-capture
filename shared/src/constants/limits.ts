@@ -1,0 +1,53 @@
+export const LIMITS = {
+  MAX_FORMULA_METRICS: 10,
+  MAX_FORMULA_NAME_LENGTH: 100,
+  MAX_FORMULA_DESCRIPTION_LENGTH: 500,
+  MIN_METRIC_WEIGHT: 0,
+  MAX_METRIC_WEIGHT: 100,
+  
+  MAX_PREDICTIONS_PER_DAY: {
+    FREE: 10,
+    STARTER: 50,
+    PROFESSIONAL: 200,
+    ENTERPRISE: -1, // unlimited
+  },
+  
+  MAX_FORMULAS: {
+    FREE: 3,
+    STARTER: 10,
+    PROFESSIONAL: 50,
+    ENTERPRISE: -1, // unlimited
+  },
+  
+  MAX_BACKTEST_SEASONS: {
+    FREE: 1,
+    STARTER: 3,
+    PROFESSIONAL: 10,
+    ENTERPRISE: -1, // unlimited
+  },
+  
+  RATE_LIMITS: {
+    WINDOW_MS: 60000, // 1 minute
+    MAX_REQUESTS: {
+      FREE: 100,
+      STARTER: 500,
+      PROFESSIONAL: 2000,
+      ENTERPRISE: 10000,
+    },
+  },
+  
+  PAGINATION: {
+    DEFAULT_LIMIT: 20,
+    MAX_LIMIT: 100,
+  },
+  
+  PASSWORD: {
+    MIN_LENGTH: 8,
+    MAX_LENGTH: 128,
+  },
+  
+  USERNAME: {
+    MIN_LENGTH: 3,
+    MAX_LENGTH: 30,
+  },
+};

@@ -1,0 +1,16 @@
+schema: 1
+story: '1.3'
+gate: CONCERNS
+status_reason: 'Missing performance specifications for search and filtering with large metric sets.'
+reviewer: 'Quinn'
+updated: '2025-08-29T07:05:00Z'
+top_issues:
+  - id: 'PERF-001'
+    severity: medium
+    finding: 'No performance target for search/filter operations'
+    suggested_action: 'Define max response time for search (<100ms recommended)'
+  - id: 'TEST-001'
+    severity: low
+    finding: 'Virtual scrolling mentioned in notes but not in acceptance criteria'
+    suggested_action: 'Clarify if virtual scrolling required for MVP'
+waiver: { active: false }

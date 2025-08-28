@@ -1,0 +1,1244 @@
+# AFL Data Capture Platform - Full-Stack Architecture
+
+## Executive Summary
+
+The AFL Data Capture platform is a user-driven sports prediction system that democratizes formula building through visual interfaces. This architecture supports 10,000+ concurrent users, sub-100ms formula calculations, and integrates multiple real-time data sources while maintaining 99.9% availability during peak periods.
+
+### Key Architectural Decisions
+- **Microservices-based** backend with domain-driven boundaries
+- **Event-driven** data pipeline for real-time updates
+- **CQRS pattern** for formula calculations and predictions
+- **Progressive Web App** frontend for cross-platform compatibility
+- **Azure-native** cloud infrastructure for scalability
+- **Redis-backed** multi-layer caching strategy
+
+## System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        WEB[Next.js PWA]
+        MOBILE[Mobile Web]
+    end
+    
+    subgraph "API Gateway"
+        APIGW[Azure API Management]
+        AUTH[Auth Service]
+    end
+    
+    subgraph "Application Services"
+        FORMULA[Formula Service]
+        PREDICT[Prediction Service]
+        USER[User Service]
+        BACKTEST[Backtest Service]
+    end
+    
+    subgraph "Data Pipeline"
+        INGEST[Data Ingestion]
+        TRANSFORM[ETL Pipeline]
+        EVENTS[Event Bus]
+    end
+    
+    subgraph "Data Layer"
+        POSTGRES[(PostgreSQL)]
+        REDIS[(Redis Cache)]
+        BLOB[Blob Storage]
+    end
+    
+    subgraph "External Sources"
+        SQUIGGLE[Squiggle API]
+        AFLTABLES[AFL Tables]
+    end
+    
+    WEB --> APIGW
+    MOBILE --> APIGW
+    APIGW --> AUTH
+    APIGW --> FORMULA
+    APIGW --> PREDICT
+    APIGW --> USER
+    APIGW --> BACKTEST
+    
+    FORMULA --> REDIS
+    PREDICT --> REDIS
+    BACKTEST --> REDIS
+    
+    FORMULA --> POSTGRES
+    USER --> POSTGRES
+    PREDICT --> POSTGRES
+    BACKTEST --> POSTGRES
+    
+    INGEST --> SQUIGGLE
+    INGEST --> AFLTABLES
+    INGEST --> TRANSFORM
+    TRANSFORM --> EVENTS
+    EVENTS --> POSTGRES
+    EVENTS --> REDIS
+```
+
+## Technology Stack
+
+### Frontend
+| Component | Technology | Justification |
+|-----------|------------|---------------|
+| Framework | Next.js 14+ | Server-side rendering, optimal performance, React ecosystem |
+| UI Library | React 18+ | Component reusability, virtual DOM efficiency |
+| Styling | Tailwind CSS | Utility-first, consistent design system, small bundle |
+| State Management | Zustand | Lightweight, TypeScript-first, minimal boilerplate |
+| Drag & Drop | @dnd-kit | Accessible, performant, touch-friendly |
+| Data Fetching | TanStack Query | Caching, optimistic updates, background refetching |
+| Forms | React Hook Form + Zod | Type-safe validation, minimal re-renders |
+| Charts | Recharts | Responsive, customizable, React-native |
+| PWA | next-pwa | Offline capability, app-like experience |
+
+### Backend
+| Component | Technology | Justification |
+|-----------|------------|---------------|
+| Runtime | Node.js 20 LTS | Event-driven, JavaScript ecosystem, Azure support |
+| Framework | Fastify | High performance, schema validation, plugin ecosystem |
+| Language | TypeScript 5+ | Type safety, better IDE support, reduced bugs |
+| API Documentation | OpenAPI 3.0 | Standard specification, auto-generated docs |
+| Authentication | JWT + Passport.js | Stateless, scalable, extensible strategies |
+| Job Queue | Bull MQ | Redis-backed, reliable, dashboard included |
+| ORM | Prisma | Type-safe queries, migrations, connection pooling |
+| Validation | Zod | Schema validation, TypeScript integration |
+| Testing | Vitest + Supertest | Fast, Jest-compatible, API testing |
+
+### Infrastructure
+| Component | Technology | Justification |
+|-----------|------------|---------------|
+| Cloud Provider | Azure | Regional presence, managed services, cost optimization |
+| Compute | App Service | Auto-scaling, managed platform, deployment slots |
+| Database | Azure Database for PostgreSQL | Managed, automatic backups, high availability |
+| Cache | Azure Cache for Redis | Managed, clustering support, persistence |
+| Storage | Azure Blob Storage | Cost-effective, CDN integration, lifecycle policies |
+| CDN | Azure Front Door | Global distribution, WAF, intelligent routing |
+| Monitoring | Application Insights | Deep integration, custom metrics, alerting |
+| Secrets | Azure Key Vault | Centralized secrets, rotation, audit logs |
+| CI/CD | GitHub Actions + Azure DevOps | Git integration, environment management |
+
+## Component Architecture
+
+### 1. Frontend Architecture
+
+```typescript
+// Directory Structure
+src/
+├── app/                    # Next.js app router
+│   ├── (auth)/            # Auth group routes
+│   ├── (dashboard)/       # Protected routes
+│   ├── api/              # API routes (BFF pattern)
+│   └── layout.tsx        # Root layout
+├── components/
+│   ├── ui/               # Base UI components
+│   ├── formula/          # Formula builder components
+│   ├── predictions/      # Prediction components
+│   └── shared/          # Shared components
+├── services/
+│   ├── api/             # API client services
+│   ├── auth/            # Authentication services
+│   └── formula/         # Formula logic
+├── hooks/               # Custom React hooks
+├── stores/              # Zustand stores
+├── types/               # TypeScript types
+└── utils/               # Utility functions
+```
+
+#### Key Design Patterns
+- **Component Composition**: Small, focused components composed into features
+- **Container/Presenter**: Logic separation from presentation
+- **Custom Hooks**: Reusable business logic encapsulation
+- **Optimistic Updates**: Immediate UI feedback with background sync
+
+### 2. Backend Service Architecture
+
+```typescript
+// Microservice Structure (per service)
+src/
+├── api/
+│   ├── routes/          # HTTP endpoints
+│   ├── controllers/     # Request handlers
+│   └── middleware/      # Auth, validation, etc.
+├── domain/
+│   ├── entities/        # Domain models
+│   ├── services/        # Business logic
+│   └── repositories/    # Data access
+├── infrastructure/
+│   ├── database/        # DB connections
+│   ├── cache/          # Redis client
+│   └── messaging/      # Event bus
+├── application/
+│   ├── commands/       # Write operations
+│   ├── queries/        # Read operations
+│   └── events/         # Domain events
+└── shared/
+    ├── errors/         # Custom errors
+    └── utils/          # Utilities
+```
+
+#### Service Boundaries
+
+**Formula Service**
+- Manages formula CRUD operations
+- Validates formula syntax and logic
+- Calculates formula weights
+- Provides formula templates
+
+**Prediction Service**
+- Generates predictions using formulas
+- Applies real-time data to calculations
+- Manages prediction history
+- Calculates confidence scores
+
+**Backtest Service**
+- Runs historical simulations
+- Calculates accuracy metrics
+- Manages backtest cache
+- Provides performance analytics
+
+**User Service**
+- Handles authentication/authorization
+- Manages user profiles
+- Tracks user preferences
+- Handles account operations
+
+### 3. Data Pipeline Architecture
+
+```yaml
+Pipeline Stages:
+  1. Ingestion:
+     - Scheduled scraping (AFL Tables)
+     - API polling (Squiggle)
+     - Rate limiting & retry logic
+     - Schema validation
+  
+  2. Transformation:
+     - Data normalization
+     - Metric calculations
+     - Aggregation operations
+     - Quality checks
+  
+  3. Storage:
+     - Hot data → Redis (current season)
+     - Warm data → PostgreSQL (2 seasons)
+     - Cold data → Blob Storage (archive)
+  
+  4. Distribution:
+     - Event publishing
+     - Cache invalidation
+     - WebSocket notifications
+```
+
+## Data Architecture
+
+### Database Schema
+
+```sql
+-- Core Domain Tables
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE formulas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    definition JSONB NOT NULL,
+    is_template BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT unique_user_formula_name UNIQUE(user_id, name)
+);
+
+CREATE INDEX idx_formulas_user_id ON formulas(user_id);
+CREATE INDEX idx_formulas_is_template ON formulas(is_template);
+
+CREATE TABLE predictions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    formula_id UUID REFERENCES formulas(id) ON DELETE CASCADE,
+    match_id UUID REFERENCES matches(id),
+    predicted_winner_id UUID REFERENCES teams(id),
+    confidence DECIMAL(5,2),
+    calculation_details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_predictions_formula_match ON predictions(formula_id, match_id);
+CREATE INDEX idx_predictions_created_at ON predictions(created_at DESC);
+
+-- AFL Data Tables
+CREATE TABLE teams (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    abbreviation VARCHAR(4) NOT NULL,
+    home_ground VARCHAR(100),
+    state VARCHAR(3)
+);
+
+CREATE TABLE matches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    round_id UUID REFERENCES rounds(id),
+    home_team_id UUID REFERENCES teams(id),
+    away_team_id UUID REFERENCES teams(id),
+    venue_id UUID REFERENCES venues(id),
+    scheduled_at TIMESTAMPTZ NOT NULL,
+    home_score INTEGER,
+    away_score INTEGER,
+    status VARCHAR(20) DEFAULT 'scheduled'
+);
+
+CREATE INDEX idx_matches_scheduled ON matches(scheduled_at);
+CREATE INDEX idx_matches_round ON matches(round_id);
+
+-- Caching Strategy Tables
+CREATE TABLE cache_entries (
+    key VARCHAR(255) PRIMARY KEY,
+    value JSONB NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_cache_expires ON cache_entries(expires_at);
+```
+
+### Caching Strategy
+
+```typescript
+// Multi-layer caching configuration
+const cacheConfig = {
+  layers: [
+    {
+      name: 'L1-Memory',
+      type: 'LRU',
+      maxSize: '100MB',
+      ttl: 60, // seconds
+      targets: ['formulas', 'user-session']
+    },
+    {
+      name: 'L2-Redis',
+      type: 'Redis',
+      ttl: 3600, // 1 hour
+      targets: ['predictions', 'calculations', 'api-responses']
+    },
+    {
+      name: 'L3-CDN',
+      type: 'Azure-FrontDoor',
+      ttl: 86400, // 24 hours
+      targets: ['static-assets', 'team-data', 'historical-stats']
+    }
+  ],
+  
+  invalidation: {
+    strategies: [
+      'time-based',      // TTL expiration
+      'event-driven',    // On data updates
+      'manual-purge'     // Admin triggered
+    ]
+  }
+};
+```
+
+## Security Architecture
+
+### Defense in Depth
+
+```yaml
+Security Layers:
+  1. Network:
+     - Azure Web Application Firewall (WAF)
+     - DDoS protection
+     - Private endpoints for databases
+     - Network segmentation
+  
+  2. Application:
+     - JWT with short expiry (15min access, 30day refresh)
+     - Rate limiting per user/IP
+     - Input sanitization
+     - CORS configuration
+     - CSP headers
+  
+  3. Data:
+     - Encryption at rest (AES-256)
+     - Encryption in transit (TLS 1.3)
+     - Column-level encryption for PII
+     - Key rotation every 90 days
+  
+  4. Access Control:
+     - RBAC implementation
+     - Principle of least privilege
+     - Service-to-service auth (mTLS)
+     - API key management
+```
+
+### Authentication Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant AuthService
+    participant Database
+    participant Redis
+    
+    User->>Frontend: Login credentials
+    Frontend->>AuthService: POST /auth/login
+    AuthService->>Database: Verify credentials
+    Database-->>AuthService: User data
+    AuthService->>Redis: Store refresh token
+    AuthService-->>Frontend: Access + Refresh tokens
+    Frontend->>Frontend: Store in httpOnly cookies
+    
+    Note over Frontend: Subsequent requests
+    Frontend->>AuthService: Request with Access token
+    AuthService->>AuthService: Validate JWT
+    AuthService-->>Frontend: Authorized response
+    
+    Note over Frontend: Token refresh
+    Frontend->>AuthService: POST /auth/refresh
+    AuthService->>Redis: Validate refresh token
+    Redis-->>AuthService: Token valid
+    AuthService-->>Frontend: New Access token
+```
+
+## Performance Optimization
+
+### Frontend Optimization
+
+```typescript
+// Performance strategies implementation
+const performanceOptimizations = {
+  bundling: {
+    codeSplitting: true,
+    dynamicImports: true,
+    treeShaking: true,
+    minification: true
+  },
+  
+  rendering: {
+    ssr: 'selective',  // Critical pages only
+    staticGeneration: ['landing', 'faq', 'templates'],
+    incrementalRegeneration: 3600, // 1 hour
+    suspense: true,
+    streaming: true
+  },
+  
+  assets: {
+    imageOptimization: 'next/image',
+    fontOptimization: 'next/font',
+    criticalCSS: true,
+    resourceHints: ['preconnect', 'dns-prefetch']
+  },
+  
+  caching: {
+    serviceWorker: true,
+    browserCache: {
+      'static': '1year',
+      'api': '5minutes',
+      'html': 'no-cache'
+    }
+  }
+};
+```
+
+### Backend Optimization
+
+```typescript
+// Query optimization strategies
+const queryOptimizations = {
+  database: {
+    connectionPooling: {
+      min: 5,
+      max: 20,
+      idleTimeout: 30000
+    },
+    queryOptimization: [
+      'prepared-statements',
+      'index-usage',
+      'query-planning',
+      'batch-operations'
+    ],
+    readReplicas: true,
+    partitioning: 'by-season'
+  },
+  
+  caching: {
+    queryResultCache: true,
+    materializeViews: ['team-stats', 'season-summary'],
+    denormalization: ['prediction-history']
+  },
+  
+  computation: {
+    parallelization: true,
+    workerThreads: 4,
+    memoization: true,
+    lazyEvaluation: true
+  }
+};
+```
+
+## Scalability Design
+
+### Horizontal Scaling Strategy
+
+```yaml
+Scaling Triggers:
+  CPU: 
+    scale_up: ">70% for 5min"
+    scale_down: "<30% for 10min"
+  
+  Memory:
+    scale_up: ">80% for 5min"
+    scale_down: "<40% for 10min"
+  
+  Request Rate:
+    scale_up: ">1000 req/s"
+    scale_down: "<100 req/s"
+  
+  Queue Depth:
+    scale_up: ">100 messages"
+    scale_down: "<10 messages"
+
+Instance Configuration:
+  min_instances: 2
+  max_instances: 20
+  scale_increment: 2
+  cooldown_period: 300s
+```
+
+### Load Distribution
+
+```nginx
+# Load balancing configuration
+upstream backend {
+    least_conn;
+    
+    server formula-service-1:3001 weight=3;
+    server formula-service-2:3001 weight=3;
+    server prediction-service-1:3002 weight=2;
+    server prediction-service-2:3002 weight=2;
+    server backtest-service:3003 weight=1;
+    
+    keepalive 32;
+}
+
+# Circuit breaker pattern
+location /api {
+    proxy_pass http://backend;
+    proxy_next_upstream error timeout http_503;
+    proxy_connect_timeout 1s;
+    proxy_read_timeout 30s;
+    proxy_intercept_errors on;
+    
+    # Retry logic
+    proxy_next_upstream_tries 3;
+    proxy_next_upstream_timeout 10s;
+}
+```
+
+## Deployment Architecture
+
+### CI/CD Pipeline
+
+```yaml
+name: Production Deployment
+
+stages:
+  - name: Build
+    jobs:
+      - lint:
+          command: npm run lint
+      - typecheck:
+          command: npm run typecheck
+      - test:
+          command: npm run test:ci
+          coverage_threshold: 80%
+      - security_scan:
+          command: npm audit
+      - build:
+          command: npm run build
+          artifacts: ['.next/', 'dist/']
+  
+  - name: Deploy to Staging
+    environment: staging
+    jobs:
+      - deploy:
+          strategy: blue-green
+          health_check: /api/health
+      - smoke_tests:
+          command: npm run test:e2e:staging
+      - performance_tests:
+          threshold:
+            p95_response_time: 500ms
+            error_rate: 1%
+  
+  - name: Deploy to Production
+    environment: production
+    approval: required
+    jobs:
+      - deploy:
+          strategy: canary
+          canary_percentage: [10, 50, 100]
+          rollback_on_failure: true
+      - verify:
+          monitors: ['availability', 'performance', 'errors']
+          duration: 10m
+```
+
+### Infrastructure as Code
+
+```hcl
+# Terraform configuration for Azure resources
+resource "azurerm_app_service_plan" "main" {
+  name                = "afl-predictor-asp"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  kind                = "Linux"
+  reserved            = true
+  
+  sku {
+    tier = "Standard"
+    size = "S2"
+  }
+  
+  # Auto-scaling configuration
+  maximum_elastic_worker_count = 20
+}
+
+resource "azurerm_postgresql_server" "main" {
+  name                = "afl-predictor-db"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  
+  sku_name = "GP_Gen5_4"
+  version  = "11"
+  storage_mb = 102400
+  
+  backup_retention_days        = 30
+  geo_redundant_backup_enabled = true
+  auto_grow_enabled            = true
+  
+  administrator_login          = var.db_admin_username
+  administrator_login_password = var.db_admin_password
+}
+
+resource "azurerm_redis_cache" "main" {
+  name                = "afl-predictor-cache"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  capacity            = 2
+  family              = "C"
+  sku_name            = "Standard"
+  
+  redis_configuration {
+    maxmemory_policy = "allkeys-lru"
+    enable_authentication = true
+  }
+}
+```
+
+## Monitoring & Observability
+
+### Metrics Collection
+
+```typescript
+// Application metrics configuration
+const metrics = {
+  application: [
+    'formula.creation.count',
+    'formula.creation.duration',
+    'prediction.generation.count',
+    'prediction.accuracy.percentage',
+    'backtest.completion.rate',
+    'user.registration.count',
+    'user.login.success.rate'
+  ],
+  
+  infrastructure: [
+    'cpu.utilization',
+    'memory.usage',
+    'disk.io',
+    'network.throughput',
+    'database.connections',
+    'cache.hit.rate'
+  ],
+  
+  business: [
+    'daily.active.users',
+    'formulas.per.user',
+    'predictions.per.day',
+    'conversion.rate',
+    'user.retention.d7'
+  ]
+};
+
+// Distributed tracing setup
+const tracing = {
+  provider: 'ApplicationInsights',
+  sampling: {
+    type: 'adaptive',
+    rate: 0.1, // 10% baseline
+    rules: [
+      { path: '/api/health', rate: 0.01 },
+      { path: '/api/predictions', rate: 0.5 },
+      { statusCode: 'error', rate: 1.0 }
+    ]
+  }
+};
+```
+
+### Alerting Rules
+
+```yaml
+Alerts:
+  - name: High Error Rate
+    condition: error_rate > 1%
+    window: 5m
+    severity: critical
+    action: page_oncall
+  
+  - name: Slow Response Time
+    condition: p95_latency > 1s
+    window: 10m
+    severity: warning
+    action: slack_notification
+  
+  - name: Database Connection Pool Exhausted
+    condition: available_connections < 2
+    window: 1m
+    severity: critical
+    action: [page_oncall, auto_scale]
+  
+  - name: Cache Miss Rate High
+    condition: cache_hit_rate < 80%
+    window: 15m
+    severity: warning
+    action: investigate_cache_strategy
+  
+  - name: Prediction Accuracy Drop
+    condition: accuracy < 50%
+    window: 1h
+    severity: warning
+    action: notify_product_team
+```
+
+## Disaster Recovery
+
+### Backup Strategy
+
+```yaml
+Backup Configuration:
+  Database:
+    type: continuous
+    retention: 30_days
+    geo_redundancy: enabled
+    point_in_time_recovery: 7_days
+  
+  Application State:
+    formulas:
+      backup_frequency: hourly
+      retention: 90_days
+    user_data:
+      backup_frequency: daily
+      retention: 365_days
+  
+  Infrastructure:
+    configuration:
+      version_control: git
+      backup: azure_backup_vault
+    secrets:
+      rotation: 90_days
+      backup: key_vault_backup
+```
+
+### Recovery Procedures
+
+```mermaid
+graph LR
+    A[Incident Detection] --> B{Severity Assessment}
+    B -->|Critical| C[Activate DR Site]
+    B -->واحد>|High| D[Failover Services]
+    B -->|Medium| E[Restore from Backup]
+    B -->|Low| F[Fix in Place]
+    
+    C --> G[DNS Failover]
+    C --> H[Restore Data]
+    C --> I[Verify Services]
+    
+    D --> J[Promote Read Replica]
+    D --> K[Scale Remaining Services]
+    
+    E --> L[Identify Recovery Point]
+    E --> M[Restore Data]
+    E --> N[Validate Integrity]
+```
+
+## API Design
+
+### RESTful Endpoints
+
+```yaml
+Formula Service:
+  POST   /api/formulas                 # Create formula
+  GET    /api/formulas                 # List user formulas
+  GET    /api/formulas/{id}            # Get specific formula
+  PUT    /api/formulas/{id}            # Update formula
+  DELETE /api/formulas/{id}            # Delete formula
+  POST   /api/formulas/{id}/duplicate  # Clone formula
+  GET    /api/formulas/templates       # Get template formulas
+
+Prediction Service:
+  POST   /api/predictions/generate     # Generate predictions
+  GET    /api/predictions              # Get user predictions
+  GET    /api/predictions/{id}         # Get specific prediction
+  GET    /api/predictions/round/{num}  # Get round predictions
+  POST   /api/predictions/{id}/compare # Compare with actual
+
+Backtest Service:
+  POST   /api/backtest/run            # Run backtest
+  GET    /api/backtest/{id}           # Get backtest results
+  GET    /api/backtest/history        # Get backtest history
+  DELETE /api/backtest/{id}/cache     # Clear backtest cache
+```
+
+### GraphQL Schema (Future)
+
+```graphql
+type Formula {
+  id: ID!
+  name: String!
+  metrics: [FormulaMetric!]!
+  createdAt: DateTime!
+  predictions(round: Int): [Prediction!]!
+  backtestResults(season: Int): BacktestResult
+}
+
+type FormulaMetric {
+  metric: Metric!
+  weight: Float!
+}
+
+type Prediction {
+  id: ID!
+  match: Match!
+  predictedWinner: Team!
+  confidence: Float!
+  calculationDetails: JSON
+}
+
+type Query {
+  formula(id: ID!): Formula
+  formulas(userId: ID!): [Formula!]!
+  predictions(formulaId: ID!, round: Int): [Prediction!]!
+}
+
+type Mutation {
+  createFormula(input: FormulaInput!): Formula!
+  updateFormula(id: ID!, input: FormulaInput!): Formula!
+  generatePredictions(formulaId: ID!, round: Int!): [Prediction!]!
+}
+```
+
+## Development Guidelines
+
+### Code Quality Standards
+
+```typescript
+// ESLint configuration
+module.exports = {
+  extends: [
+    'next/core-web-vitals',
+    'plugin:@typescript-eslint/recommended',
+    'prettier'
+  ],
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'error',
+    '@typescript-eslint/explicit-function-return-type': 'warn',
+    'no-console': ['error', { allow: ['warn', 'error'] }],
+    'prefer-const': 'error',
+    'no-unused-vars': 'error'
+  }
+};
+
+// Prettier configuration
+module.exports = {
+  semi: true,
+  trailingComma: 'es5',
+  singleQuote: true,
+  printWidth: 80,
+  tabWidth: 2,
+  useTabs: false
+};
+```
+
+### Git Workflow & Version Control
+
+#### Branch Strategy
+
+```mermaid
+gitGraph
+    commit id: "main"
+    branch develop
+    checkout develop
+    commit id: "dev-work"
+    
+    branch feature/formula-builder
+    checkout feature/formula-builder
+    commit id: "feat-1"
+    commit id: "feat-2"
+    checkout develop
+    merge feature/formula-builder
+    
+    branch feature/predictions
+    checkout feature/predictions
+    commit id: "pred-1"
+    checkout develop
+    merge feature/predictions
+    
+    checkout main
+    merge develop tag: "v1.0.0"
+    
+    branch hotfix/critical-bug
+    checkout hotfix/critical-bug
+    commit id: "fix"
+    checkout main
+    merge hotfix/critical-bug tag: "v1.0.1"
+    checkout develop
+    merge hotfix/critical-bug
+```
+
+#### Branch Types & Naming Conventions
+
+| Branch Type | Pattern | Purpose | Base Branch | Merge Target |
+|------------|---------|---------|-------------|--------------|
+| **main** | `main` | Production-ready code | - | - |
+| **develop** | `develop` | Integration branch | main | main |
+| **feature** | `feature/{ticket}-{description}` | New features | develop | develop |
+| **bugfix** | `bugfix/{ticket}-{description}` | Bug fixes | develop | develop |
+| **hotfix** | `hotfix/{ticket}-{description}` | Critical production fixes | main | main & develop |
+| **release** | `release/{version}` | Release preparation | develop | main & develop |
+
+**Examples:**
+- `feature/AFL-123-formula-drag-drop`
+- `bugfix/AFL-456-calculation-error`
+- `hotfix/AFL-789-api-timeout`
+- `release/1.2.0`
+
+#### Commit Standards
+
+**Format:** `<type>(<scope>): <subject>`
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, semicolons, etc.)
+- `refactor`: Code refactoring without feature changes
+- `perf`: Performance improvements
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+- `ci`: CI/CD changes
+
+**Examples:**
+```bash
+feat(formula): add drag-and-drop formula builder
+fix(predictions): correct confidence score calculation
+docs(api): update prediction endpoint documentation
+perf(backtest): optimize historical data queries
+test(auth): add JWT refresh token tests
+```
+
+#### Pull Request Process
+
+**PR Title Format:** `[{Type}] {Ticket}: {Description}`
+
+**PR Template (.github/pull_request_template.md):**
+```markdown
+## Description
+Brief description of changes
+
+## Type of Change
+- [ ] Bug fix (non-breaking change)
+- [ ] New feature (non-breaking change)
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] Manual testing completed
+
+## Checklist
+- [ ] Code follows project style guidelines
+- [ ] Self-review completed
+- [ ] Comments added for complex code
+- [ ] Documentation updated
+- [ ] No new warnings generated
+- [ ] Tests added/updated
+- [ ] All tests passing
+- [ ] Performance impact considered
+
+## Related Issues
+Closes #123
+```
+
+**Review Requirements:**
+- Minimum 1 approval for feature/bugfix branches
+- Minimum 2 approvals for hotfix/release branches
+- All CI checks must pass
+- No merge conflicts
+- Code coverage must not decrease
+
+#### Git Configuration
+
+**Repository Setup:**
+```bash
+# .gitignore essentials
+node_modules/
+.env
+.env.local
+.next/
+dist/
+coverage/
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# .gitattributes for line endings
+* text=auto
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+```
+
+**Branch Protection Rules (main):**
+- Require PR before merging
+- Require status checks (CI/CD)
+- Require branches to be up to date
+- Require conversation resolution
+- Include administrators
+- Restrict force pushes
+
+**Branch Protection Rules (develop):**
+- Require PR before merging
+- Require status checks
+- Require at least 1 review
+- Dismiss stale reviews
+- Restrict force pushes
+
+#### Workflow Guidelines
+
+**Feature Development Flow:**
+```bash
+# 1. Start from updated develop
+git checkout develop
+git pull origin develop
+
+# 2. Create feature branch
+git checkout -b feature/AFL-123-new-feature
+
+# 3. Work and commit
+git add .
+git commit -m "feat(scope): description"
+
+# 4. Keep branch updated
+git fetch origin
+git rebase origin/develop
+
+# 5. Push and create PR
+git push origin feature/AFL-123-new-feature
+# Create PR via GitHub/Azure DevOps
+```
+
+**Release Process:**
+```bash
+# 1. Create release branch
+git checkout -b release/1.2.0 develop
+
+# 2. Update version numbers
+npm version minor
+# Update CHANGELOG.md
+
+# 3. Create PR to main
+# After approval and merge:
+
+# 4. Tag the release
+git tag -a v1.2.0 -m "Release version 1.2.0"
+git push origin v1.2.0
+
+# 5. Merge back to develop
+git checkout develop
+git merge --no-ff release/1.2.0
+```
+
+**Hotfix Process:**
+```bash
+# 1. Create from main
+git checkout -b hotfix/AFL-999-critical main
+
+# 2. Fix and commit
+git commit -m "fix(core): resolve critical issue"
+
+# 3. Merge to main
+# Create PR, review, merge
+
+# 4. Tag hotfix
+git tag -a v1.0.1 -m "Hotfix version 1.0.1"
+
+# 5. Merge to develop
+git checkout develop
+git merge --no-ff hotfix/AFL-999-critical
+```
+
+#### Code Review Standards
+
+**Review Checklist:**
+- **Functionality**: Does the code do what it's supposed to?
+- **Tests**: Are there adequate tests? Do they pass?
+- **Security**: Any security vulnerabilities?
+- **Performance**: Any performance concerns?
+- **Style**: Does it follow our conventions?
+- **Documentation**: Is complex logic documented?
+- **Architecture**: Does it align with our patterns?
+
+**Review Comments:**
+- Be constructive and specific
+- Suggest improvements, don't just criticize
+- Use "we" instead of "you"
+- Prefix with severity: `[Critical]`, `[Major]`, `[Minor]`, `[Nit]`
+
+**Example Review Comments:**
+```typescript
+// [Minor] We should consider memoizing this calculation 
+// for better performance when dealing with large datasets
+
+// [Critical] This could cause a SQL injection vulnerability. 
+// We need to use parameterized queries instead.
+
+// [Nit] We typically use 'const' here since this value 
+// doesn't change
+```
+
+### Testing Requirements
+
+```typescript
+// Test coverage requirements
+const testRequirements = {
+  unit: {
+    coverage: 80,
+    focus: ['business-logic', 'utilities', 'components'],
+    framework: 'vitest'
+  },
+  
+  integration: {
+    coverage: 70,
+    focus: ['api-endpoints', 'data-pipeline', 'auth-flow'],
+    framework: 'supertest'
+  },
+  
+  e2e: {
+    scenarios: [
+      'user-registration',
+      'formula-creation',
+      'prediction-generation',
+      'backtest-execution'
+    ],
+    framework: 'playwright'
+  },
+  
+  performance: {
+    tools: ['k6', 'lighthouse'],
+    thresholds: {
+      'api-response': '<500ms p95',
+      'page-load': '<3s',
+      'formula-calc': '<100ms'
+    }
+  }
+};
+```
+
+## Migration Strategy
+
+### Phase 1: MVP Launch (Weeks 1-6)
+- Core formula builder
+- Basic predictions
+- Essential data pipeline
+- User registration
+
+### Phase 2: Enhancement (Weeks 7-12)
+- Advanced backtesting
+- Performance optimization
+- Mobile PWA features
+- Analytics integration
+
+### Phase 3: Scale (Months 4-6)
+- Multi-sport support
+- Formula marketplace prep
+- Premium features
+- API monetization
+
+## Cost Optimization
+
+### Resource Allocation
+
+```yaml
+Monthly Budget Allocation ($500):
+  Compute: $200
+    - App Service: $150
+    - Functions: $50
+  
+  Database: $150
+    - PostgreSQL: $100
+    - Redis Cache: $50
+  
+  Storage: $30
+    - Blob Storage: $20
+    - CDN: $10
+  
+  Monitoring: $50
+    - Application Insights: $30
+    - Log Analytics: $20
+  
+  Network: $70
+    - Bandwidth: $50
+    - Load Balancer: $20
+
+Cost Optimization Strategies:
+  - Reserved instances (30% savings)
+  - Auto-scaling with aggressive scale-down
+  - Cold storage for historical data
+  - CDN for static assets
+  - Query optimization to reduce DB load
+```
+
+## Risk Mitigation
+
+### Technical Risks
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|------------|------------|
+| Data source failure | High | Medium | Multiple sources, caching, manual fallback |
+| Scaling issues | High | Low | Load testing, auto-scaling, CDN |
+| Security breach | Critical | Low | Security audits, WAF, encryption |
+| Poor predictions | Medium | Medium | Templates, education, continuous improvement |
+| Cost overrun | Medium | Low | Monitoring, alerts, reserved capacity |
+
+## Conclusion
+
+This architecture provides a robust, scalable foundation for the AFL Data Capture platform that:
+- Supports 10,000+ concurrent users
+- Delivers sub-100ms formula calculations
+- Maintains 99.9% availability
+- Scales within $500/month budget
+- Enables rapid feature development
+- Provides clear migration path to multi-sport platform
+
+The modular design allows independent scaling of components, while the event-driven architecture ensures real-time data updates. The comprehensive monitoring and disaster recovery strategies ensure business continuity and optimal user experience.
+
+---
+*Architecture Version 1.0 - Created 2025-08-28*
+*Architect: Winston - Full-Stack Technical Leader*

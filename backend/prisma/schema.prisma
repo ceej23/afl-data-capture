@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  passwordHash  String
+  role          UserRole  @default(USER)
+  subscription  SubscriptionTier @default(FREE)
+  firstName     String?
+  lastName      String?
+  avatar        String?
+  favoriteTeam  String?
+  bio           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lastLoginAt   DateTime?
+  
+  formulas      Formula[]
+  predictions   Prediction[]
+  preferences   UserPreferences?
+  refreshTokens RefreshToken[]
+  
+  @@index([email])
+  @@index([username])
+}
+
+model UserPreferences {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifyEmail      Boolean  @default(true)
+  notifyPush       Boolean  @default(false)
+  notifyPredictions Boolean @default(true)
+  notifyResults    Boolean  @default(true)
+  theme            String   @default("system")
+  timezone         String   @default("Australia/Melbourne")
+  dateFormat       String   @default("DD/MM/YYYY")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@index([token])
+  @@index([userId])
+}
+
+// Formulas
+model Formula {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  isPublic    Boolean  @default(false)
+  isTemplate  Boolean  @default(false)
+  confidence  Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  metrics     FormulaMetric[]
+  predictions Prediction[]
+  backtests   Backtest[]
+  
+  @@index([userId])
+  @@index([isPublic])
+}
+
+model FormulaMetric {
+  id         String   @id @default(cuid())
+  formulaId  String
+  formula    Formula  @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  metricId   String
+  metric     Metric   @relation(fields: [metricId], references: [id])
+  weight     Float
+  operator   String   @default("add")
+  condition  Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  @@unique([formulaId, metricId])
+  @@index([formulaId])
+}
+
+// Metrics
+model Metric {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  category    String
+  dataType    String
+  unit        String?
+  minValue    Float?
+  maxValue    Float?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  formulas    FormulaMetric[]
+  matchData   MatchData[]
+  
+  @@index([category])
+  @@index([name])
+}
+
+// Teams
+model Team {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  shortName  String   @unique
+  logo       String?
+  homeGround String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+  
+  @@index([name])
+  @@index([shortName])
+}
+
+// Matches
+model Match {
+  id         String      @id @default(cuid())
+  round      Int
+  season     Int
+  homeTeamId String
+  homeTeam   Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId String
+  awayTeam   Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  venue      String
+  date       DateTime
+  status     MatchStatus @default(SCHEDULED)
+  homeScore  Int?
+  awayScore  Int?
+  winner     String?
+  margin     Int?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  
+  predictions Prediction[]
+  matchData   MatchData[]
+  
+  @@index([season, round])
+  @@index([date])
+  @@index([status])
+}
+
+model MatchData {
+  id        String   @id @default(cuid())
+  matchId   String
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  metricId  String
+  metric    Metric   @relation(fields: [metricId], references: [id])
+  homeValue Float
+  awayValue Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([matchId, metricId])
+  @@index([matchId])
+}
+
+// Predictions
+model Prediction {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formulaId        String
+  formula          Formula  @relation(fields: [formulaId], references: [id])
+  matchId          String
+  match            Match    @relation(fields: [matchId], references: [id])
+  predictedWinner  String
+  predictedMargin  Int
+  confidence       Float
+  probabilityHome  Float
+  probabilityAway  Float
+  correct          Boolean?
+  actualMargin     Int?
+  marginError      Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  metrics          PredictionMetric[]
+  
+  @@index([userId])
+  @@index([matchId])
+  @@index([createdAt])
+}
+
+model PredictionMetric {
+  id           String     @id @default(cuid())
+  predictionId String
+  prediction   Prediction @relation(fields: [predictionId], references: [id], onDelete: Cascade)
+  metricName   String
+  value        Float
+  weight       Float
+  contribution Float
+  createdAt    DateTime   @default(now())
+  
+  @@index([predictionId])
+}
+
+// Backtesting
+model Backtest {
+  id               String   @id @default(cuid())
+  formulaId        String
+  formula          Formula  @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  startDate        DateTime
+  endDate          DateTime
+  totalGames       Int
+  correctPredictions Int
+  accuracy         Float
+  avgConfidence    Float
+  profitLoss       Float
+  roi              Float
+  status           String   @default("pending")
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([formulaId])
+  @@index([status])
+}
+
+// Enums
+enum UserRole {
+  USER
+  PREMIUM
+  ADMIN
+}
+
+enum SubscriptionTier {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}

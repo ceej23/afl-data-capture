@@ -1,0 +1,16 @@
+schema: 1
+story: '2.1'
+gate: CONCERNS
+status_reason: 'API fallback strategy needs more detail for production resilience.'
+reviewer: 'Quinn'
+updated: '2025-08-29T07:05:00Z'
+top_issues:
+  - id: 'REL-001'
+    severity: high
+    finding: 'No explicit data freshness fallback if API unavailable >24hrs'
+    suggested_action: 'Define manual data update process for extended outages'
+  - id: 'SEC-001'
+    severity: medium
+    finding: 'API key storage method not specified'
+    suggested_action: 'Specify Azure Key Vault for API credentials'
+waiver: { active: false }

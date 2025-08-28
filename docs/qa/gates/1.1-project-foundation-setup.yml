@@ -1,0 +1,16 @@
+schema: 1
+story: '1.1'
+gate: PASS
+status_reason: 'Story well-defined with comprehensive acceptance criteria covering all infrastructure needs.'
+reviewer: 'Quinn'
+updated: '2025-08-29T07:05:00Z'
+top_issues:
+  - id: 'DOC-001'
+    severity: low
+    finding: 'Azure cost estimates not specified in story'
+    suggested_action: 'Add estimated monthly costs for Azure resources during implementation'
+  - id: 'SEC-001'
+    severity: low
+    finding: 'Secret rotation strategy not mentioned'
+    suggested_action: 'Document secret rotation process in deployment guide'
+waiver: { active: false }

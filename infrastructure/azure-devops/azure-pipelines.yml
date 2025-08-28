@@ -1,0 +1,275 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - docs/*
+      - README.md
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  - group: afl-predictor-vars
+  - name: buildConfiguration
+    value: 'Release'
+  - name: azureSubscription
+    value: 'AFL-Predictor-Service-Connection'
+  - name: nodeVersion
+    value: '20.x'
+
+stages:
+  # CI Stage - Build and Test
+  - stage: CI
+    displayName: 'Build and Test'
+    jobs:
+      - job: BuildFrontend
+        displayName: 'Build Frontend'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Install Node.js'
+          
+          - script: |
+              cd frontend
+              npm ci
+              npm run lint
+              npm run type-check
+              npm run build
+            displayName: 'Build Frontend'
+          
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: 'frontend/.next'
+              artifactName: 'frontend-build'
+            displayName: 'Publish Frontend Artifacts'
+      
+      - job: BuildBackend
+        displayName: 'Build Backend'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Install Node.js'
+          
+          - script: |
+              cd backend
+              npm ci
+              npm run lint
+              npm run type-check
+              npm run build
+              npx prisma generate
+            displayName: 'Build Backend'
+          
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: 'backend/dist'
+              artifactName: 'backend-build'
+            displayName: 'Publish Backend Artifacts'
+      
+      - job: RunTests
+        displayName: 'Run Tests'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+            displayName: 'Install Node.js'
+          
+          - script: |
+              npm ci
+              npm run test:ci
+            displayName: 'Run All Tests'
+          
+          - task: PublishTestResults@2
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/test-results.xml'
+              failTaskOnFailedTests: true
+            displayName: 'Publish Test Results'
+          
+          - task: PublishCodeCoverageResults@1
+            inputs:
+              codeCoverageTool: 'Cobertura'
+              summaryFileLocation: '**/coverage/cobertura-coverage.xml'
+            displayName: 'Publish Code Coverage'
+
+  # CD Stage - Deploy to Development
+  - stage: DeployDev
+    displayName: 'Deploy to Development'
+    dependsOn: CI
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - deployment: DeployDevEnvironment
+        displayName: 'Deploy to Dev'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'Development'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@0
+                  inputs:
+                    buildType: 'current'
+                    downloadType: 'all'
+                  displayName: 'Download Artifacts'
+                
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    appType: 'webAppLinux'
+                    appName: 'afl-predictor-frontend-dev'
+                    package: '$(System.ArtifactsDirectory)/frontend-build'
+                    runtimeStack: 'NODE|20-lts'
+                    startUpCommand: 'npm run start'
+                  displayName: 'Deploy Frontend to Dev'
+                
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    appType: 'webAppLinux'
+                    appName: 'afl-predictor-backend-dev'
+                    package: '$(System.ArtifactsDirectory)/backend-build'
+                    runtimeStack: 'NODE|20-lts'
+                    startUpCommand: 'npm run start'
+                  displayName: 'Deploy Backend to Dev'
+                
+                - script: |
+                    cd backend
+                    npx prisma migrate deploy
+                  displayName: 'Run Database Migrations'
+                  env:
+                    DATABASE_URL: $(DEV_DATABASE_URL)
+
+  # CD Stage - Deploy to Staging
+  - stage: DeployStaging
+    displayName: 'Deploy to Staging'
+    dependsOn: CI
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployStagingEnvironment
+        displayName: 'Deploy to Staging'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'Staging'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadBuildArtifacts@0
+                  inputs:
+                    buildType: 'current'
+                    downloadType: 'all'
+                  displayName: 'Download Artifacts'
+                
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    appType: 'webAppLinux'
+                    appName: 'afl-predictor-frontend-prod'
+                    deployToSlotOrASE: true
+                    slotName: 'staging'
+                    package: '$(System.ArtifactsDirectory)/frontend-build'
+                    runtimeStack: 'NODE|20-lts'
+                    startUpCommand: 'npm run start'
+                  displayName: 'Deploy Frontend to Staging Slot'
+                
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    appType: 'webAppLinux'
+                    appName: 'afl-predictor-backend-prod'
+                    deployToSlotOrASE: true
+                    slotName: 'staging'
+                    package: '$(System.ArtifactsDirectory)/backend-build'
+                    runtimeStack: 'NODE|20-lts'
+                    startUpCommand: 'npm run start'
+                  displayName: 'Deploy Backend to Staging Slot'
+                
+                - script: |
+                    cd backend
+                    npx prisma migrate deploy
+                  displayName: 'Run Database Migrations'
+                  env:
+                    DATABASE_URL: $(STAGING_DATABASE_URL)
+                
+                - task: AzureFunctionAppTest@1
+                  inputs:
+                    appType: 'webApp'
+                    appName: 'afl-predictor-backend-prod'
+                    slot: 'staging'
+                    testPath: '/health'
+                    expectedStatusCode: '200'
+                  displayName: 'Health Check - Backend'
+                
+                - task: AzureFunctionAppTest@1
+                  inputs:
+                    appType: 'webApp'
+                    appName: 'afl-predictor-frontend-prod'
+                    slot: 'staging'
+                    testPath: '/'
+                    expectedStatusCode: '200'
+                  displayName: 'Health Check - Frontend'
+
+  # CD Stage - Deploy to Production
+  - stage: DeployProd
+    displayName: 'Deploy to Production'
+    dependsOn: DeployStaging
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployProdEnvironment
+        displayName: 'Deploy to Production'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'Production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureAppServiceManage@0
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    action: 'Swap Slots'
+                    webAppName: 'afl-predictor-frontend-prod'
+                    sourceSlot: 'staging'
+                    targetSlot: 'production'
+                    preserveVnet: true
+                  displayName: 'Swap Frontend Staging to Production'
+                
+                - task: AzureAppServiceManage@0
+                  inputs:
+                    azureSubscription: $(azureSubscription)
+                    action: 'Swap Slots'
+                    webAppName: 'afl-predictor-backend-prod'
+                    sourceSlot: 'staging'
+                    targetSlot: 'production'
+                    preserveVnet: true
+                  displayName: 'Swap Backend Staging to Production'
+                
+                - task: AzureFunctionAppTest@1
+                  inputs:
+                    appType: 'webApp'
+                    appName: 'afl-predictor-backend-prod'
+                    testPath: '/health'
+                    expectedStatusCode: '200'
+                  displayName: 'Verify Production - Backend'
+                
+                - task: AzureFunctionAppTest@1
+                  inputs:
+                    appType: 'webApp'
+                    appName: 'afl-predictor-frontend-prod'
+                    testPath: '/'
+                    expectedStatusCode: '200'
+                  displayName: 'Verify Production - Frontend'
