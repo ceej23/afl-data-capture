@@ -110,7 +110,8 @@ jobs:
           ARM_TENANT_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).tenantId }}
           TF_VAR_db_admin_username: ${{ secrets.DB_ADMIN_USERNAME || 'afladmin' }}
           TF_VAR_db_admin_password: ${{ secrets.DB_ADMIN_PASSWORD || 'P@ssw0rd123!' }}
-          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET || 'default-jwt-secret-change-in-production' }}
+          TF_VAR_jwt_access_secret: ${{ secrets.JWT_ACCESS_SECRET || 'default-jwt-access-secret-change-in-production' }}
+          TF_VAR_jwt_refresh_secret: ${{ secrets.JWT_REFRESH_SECRET || 'default-jwt-refresh-secret-change-in-production' }}
         run: |
           cd infrastructure/terraform
           terraform plan -var-file=environments/dev.tfvars -out=tfplan
@@ -154,7 +155,8 @@ jobs:
           ARM_TENANT_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).tenantId }}
           TF_VAR_db_admin_username: ${{ secrets.DB_ADMIN_USERNAME || 'afladmin' }}
           TF_VAR_db_admin_password: ${{ secrets.DB_ADMIN_PASSWORD || 'P@ssw0rd123!' }}
-          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET || 'default-jwt-secret-change-in-production' }}
+          TF_VAR_jwt_access_secret: ${{ secrets.JWT_ACCESS_SECRET || 'default-jwt-access-secret-change-in-production' }}
+          TF_VAR_jwt_refresh_secret: ${{ secrets.JWT_REFRESH_SECRET || 'default-jwt-refresh-secret-change-in-production' }}
         run: |
           cd infrastructure/terraform
           terraform init
@@ -218,7 +220,8 @@ jobs:
           ARM_TENANT_ID: ${{ fromJSON(secrets.AZURE_CREDENTIALS).tenantId }}
           TF_VAR_db_admin_username: ${{ secrets.DB_ADMIN_USERNAME || 'afladmin' }}
           TF_VAR_db_admin_password: ${{ secrets.DB_ADMIN_PASSWORD || 'P@ssw0rd123!' }}
-          TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET || 'default-jwt-secret-change-in-production' }}
+          TF_VAR_jwt_access_secret: ${{ secrets.JWT_ACCESS_SECRET || 'default-jwt-access-secret-change-in-production' }}
+          TF_VAR_jwt_refresh_secret: ${{ secrets.JWT_REFRESH_SECRET || 'default-jwt-refresh-secret-change-in-production' }}
         run: |
           cd infrastructure/terraform
           terraform init
