@@ -23,7 +23,30 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      
+      - name: Cache frontend dependencies
+        uses: actions/cache@v3
+        with:
+          path: frontend/node_modules
+          key: ${{ runner.os }}-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-
+      
+      - name: Cache backend dependencies
+        uses: actions/cache@v3
+        with:
+          path: backend/node_modules
+          key: ${{ runner.os }}-backend-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-
+      
+      - name: Cache shared dependencies
+        uses: actions/cache@v3
+        with:
+          path: shared/node_modules
+          key: ${{ runner.os }}-shared-${{ hashFiles('shared/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-shared-
       
       - name: Install dependencies
         run: |
@@ -99,7 +122,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -117,7 +139,7 @@ jobs:
           terraform init
           terraform apply -var-file=environments/dev.tfvars -auto-approve
       
-      - name: Build Applications
+      - name: Install and Build Applications
         run: |
           npm ci --prefix frontend
           npm ci --prefix backend
@@ -156,7 +178,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -174,7 +195,7 @@ jobs:
           terraform init
           terraform apply -var-file=environments/prod.tfvars -auto-approve
       
-      - name: Build Applications
+      - name: Install and Build Applications
         run: |
           npm ci --prefix frontend
           npm ci --prefix backend
