@@ -7,7 +7,15 @@ set -e
 
 # Configuration
 SUBSCRIPTION_ID="c6fdd64b-f4ef-404f-aa8d-2b013bcd03ee"
-RESOURCE_GROUP="afl-predictor-rg"
+
+# Get environment argument
+ENVIRONMENT="${1:-prod}"
+if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "prod" ]]; then
+    echo "Usage: $0 [dev|prod]"
+    exit 1
+fi
+
+RESOURCE_GROUP="afl-predictor-rg-${ENVIRONMENT}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -18,12 +26,17 @@ NC='\033[0m' # No Color
 echo -e "${RED}⚠️  WARNING: AZURE RESOURCE DESTRUCTION ⚠️${NC}"
 echo "=================================================="
 echo -e "${YELLOW}This will PERMANENTLY DELETE:${NC}"
+echo "  - Environment: ${ENVIRONMENT^^}"
 echo "  - Resource Group: $RESOURCE_GROUP"
 echo "  - ALL resources within this group"
 echo "  - ALL databases and data"
 echo "  - ALL configurations and secrets"
 echo ""
-echo -e "${RED}ESTIMATED SAVINGS: \$530/month (\$17/day)${NC}"
+if [[ "$ENVIRONMENT" == "prod" ]]; then
+    echo -e "${RED}ESTIMATED SAVINGS: \$530/month (\$17/day)${NC}"
+else
+    echo -e "${YELLOW}ESTIMATED SAVINGS: \$44/month (\$1.50/day)${NC}"
+fi
 echo ""
 echo "Resources to be destroyed:"
 echo "  - App Service Plan S2 (\$140/month)"
@@ -36,9 +49,9 @@ echo "  - All monitoring and alerts"
 echo ""
 echo -e "${RED}This action cannot be undone!${NC}"
 echo ""
-read -p "Type 'DELETE-ALL-RESOURCES' to confirm: " confirmation
+read -p "Type 'DELETE-$ENVIRONMENT' to confirm: " confirmation
 
-if [[ "$confirmation" != "DELETE-ALL-RESOURCES" ]]; then
+if [[ "$confirmation" != "DELETE-$ENVIRONMENT" ]]; then
     echo -e "${GREEN}✅ Destruction cancelled. Infrastructure is safe.${NC}"
     exit 0
 fi
