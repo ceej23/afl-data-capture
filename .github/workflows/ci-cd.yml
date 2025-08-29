@@ -225,7 +225,11 @@ jobs:
         run: |
           cd infrastructure/terraform
           terraform init
-          terraform apply -var-file=environments/prod.tfvars -auto-approve
+          # Import existing resources if they exist
+          terraform import azurerm_resource_group.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg" || true
+          # Apply with refresh to sync state
+          terraform apply -var-file=environments/prod.tfvars -auto-approve -refresh=true
       
       - name: Install and Build Applications
         run: |
