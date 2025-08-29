@@ -228,9 +228,38 @@ jobs:
         run: |
           cd infrastructure/terraform
           terraform init
-          # Import existing resources if they exist
+          
+          # Import ALL existing resources to avoid conflicts
+          echo "Importing existing resources..."
+          
+          # Resource Group
           terraform import azurerm_resource_group.main \
             "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg" || true
+          
+          # Redis Cache
+          terraform import azurerm_redis_cache.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Cache/redis/afl-predictor-cache-prod" || true
+          
+          # Key Vault
+          terraform import azurerm_key_vault.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.KeyVault/vaults/afl-predictor-vault-prod" || true
+          
+          # App Service Plan
+          terraform import azurerm_service_plan.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Web/serverFarms/afl-predictor-asp-prod" || true
+          
+          # Application Insights
+          terraform import azurerm_application_insights.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/components/afl-predictor-insights-prod" || true
+          
+          # Monitor Action Group
+          terraform import azurerm_monitor_action_group.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/actionGroups/afl-predictor-action-group-prod" || true
+          
+          # PostgreSQL (if exists)
+          terraform import azurerm_postgresql_flexible_server.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/afl-predictor-db-prod" || true
+          
           # Apply with refresh to sync state
           terraform apply -var-file=environments/prod.tfvars -auto-approve -refresh=true
       
