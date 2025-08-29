@@ -5,7 +5,7 @@ import React from 'react';
 // Mock Next.js Image component
 vi.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => React.createElement('img', props),
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => React.createElement('img', props),
 }));
 
 // Mock Next.js router
