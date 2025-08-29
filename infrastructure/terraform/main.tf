@@ -73,9 +73,12 @@ resource "azurerm_linux_web_app" "frontend" {
   
   https_only = true
   
-  # Sticky settings configuration
-  sticky_settings {
-    app_setting_names = var.environment == "prod" ? ["NODE_ENV", "NEXT_PUBLIC_API_URL"] : []
+  # Sticky settings configuration (only for production)
+  dynamic "sticky_settings" {
+    for_each = var.environment == "prod" ? [1] : []
+    content {
+      app_setting_names = ["NODE_ENV", "NEXT_PUBLIC_API_URL"]
+    }
   }
   
   tags = var.tags
@@ -118,6 +121,14 @@ resource "azurerm_linux_web_app" "backend" {
   }
   
   https_only = true
+  
+  # Sticky settings configuration (only for production)
+  dynamic "sticky_settings" {
+    for_each = var.environment == "prod" ? [1] : []
+    content {
+      app_setting_names = ["NODE_ENV", "DATABASE_URL", "REDIS_URL"]
+    }
+  }
   
   tags = var.tags
 }
