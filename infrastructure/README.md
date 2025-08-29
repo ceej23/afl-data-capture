@@ -13,287 +13,191 @@ infrastructure/
 │   ├── variables.tf       # Input variables
 │   ├── outputs.tf         # Output values
 │   └── environments/      # Environment-specific configs
-│       ├── dev.tfvars
-│       └── prod.tfvars
-├── azure-devops/          # CI/CD pipelines
+│       ├── dev.tfvars     # Development (F1 tier, $44/month)
+│       └── prod.tfvars    # Production (S2 tier, $530/month)
+├── azure-devops/          # Legacy Azure DevOps pipeline
 │   └── azure-pipelines.yml
-├── scripts/               # Deployment and utility scripts
-│   ├── deploy-azure.sh    # Main deployment script
-│   └── rollback.sh        # Emergency rollback script
-└── manual-setup/          # Manual setup guides
+└── scripts/               # Deployment and utility scripts
+    ├── deploy-azure.sh         # Manual deployment script
+    ├── destroy-azure-resources.sh  # Destroy by environment
+    ├── destroy-infrastructure.sh   # Terraform destroy
+    ├── rollback.sh            # Emergency rollback
+    └── setup-terraform-backend.sh  # Backend configuration
 ```
 
-## 🚀 Quick Start
+## 🚀 Current Status
 
-### Prerequisites
+| Environment | Status | Resource Group | Monthly Cost | URL |
+|------------|--------|---------------|--------------|-----|
+| Development | ✅ Deployed | afl-predictor-rg-dev | ~$44 | [Frontend](https://afl-predictor-frontend-dev.azurewebsites.net) |
+| Production | ❌ Not Deployed | afl-predictor-rg-prod | $0 | N/A |
 
-1. Azure CLI installed (`az --version`)
-2. Terraform installed (`terraform --version`)
-3. Azure subscription with appropriate permissions
-4. Azure DevOps account (for CI/CD)
+## 🔧 Deployment Methods
 
-### Deploy Infrastructure
+### Method 1: GitHub Actions (Recommended)
+The CI/CD pipeline automatically deploys on push:
+- `develop` branch → Development environment
+- `main` branch → Production environment (requires approval)
 
+### Method 2: Manual Terraform Deployment
 ```bash
-# Navigate to scripts directory
+cd infrastructure/terraform
+
+# Initialize Terraform
+terraform init
+
+# Deploy development
+terraform apply -var-file="environments/dev.tfvars"
+
+# Deploy production (WARNING: $530/month)
+terraform apply -var-file="environments/prod.tfvars"
+```
+
+### Method 3: Script Deployment
+```bash
 cd infrastructure/scripts
 
-# Deploy to development environment
+# Deploy to development
 ./deploy-azure.sh dev
 
-# Deploy to production environment
+# Deploy to production (WARNING: $530/month)
 ./deploy-azure.sh prod
 ```
 
-## 📋 Manual Azure Portal Setup
+## 💰 Cost Management
 
-If you prefer manual setup through Azure Portal:
+### Environment Costs
+| Resource | Development | Production |
+|----------|------------|------------|
+| App Service Plan | F1 Free ($0) | S2 Standard ($140) |
+| PostgreSQL | B_Standard_B1ms ($15) | GP_Standard_D2s_v3 ($250) |
+| Redis Cache | Basic C0 ($16) | Standard C1 ($120) |
+| Application Insights | Basic ($5) | Standard ($20) |
+| Key Vault | ~$1 | ~$2 |
+| **Total** | **~$44/month** | **~$530/month** |
 
-### 1. Create Resource Group
-- Name: `afl-predictor-rg`
-- Region: `Australia Southeast`
-
-### 2. Create App Service Plan
-- Name: `afl-predictor-asp-{env}`
-- OS: Linux
-- SKU: S1 (dev) or S2 (prod)
-- Region: Same as resource group
-
-### 3. Create App Services
-
-#### Frontend:
-- Name: `afl-predictor-frontend-{env}`
-- Runtime: Node 20 LTS
-- Startup Command: `npm run start`
-- HTTPS Only: Enabled
-
-#### Backend:
-- Name: `afl-predictor-backend-{env}`
-- Runtime: Node 20 LTS
-- Startup Command: `npm run start`
-- HTTPS Only: Enabled
-- System Assigned Identity: Enabled
-
-### 4. Create PostgreSQL Database
-- Server Name: `afl-predictor-db-{env}`
-- Version: 15
-- SKU: Basic (dev) or General Purpose (prod)
-- SSL Enforcement: Enabled
-- Firewall: Allow Azure Services
-
-### 5. Create Redis Cache
-- Name: `afl-predictor-cache-{env}`
-- SKU: Basic C0 (dev) or Standard C1 (prod)
-- TLS: 1.2 minimum
-
-### 6. Create Key Vault
-- Name: `afl-predictor-vault-{env}`
-- Access Policies: Grant backend app service Secret Get/List
-- Soft Delete: Enabled
-- Purge Protection: Enabled (prod only)
-
-### 7. Create Application Insights
-- Name: `afl-predictor-insights-{env}`
-- Application Type: Web
-- Link to App Services
-
-## 🔐 Required Secrets
-
-Add these secrets to Key Vault:
-
+### Cost Control Scripts
 ```bash
-# Database connection
-database-url: postgresql://{username}:{password}@{server}.postgres.database.azure.com:5432/aflpredictor?sslmode=require
+# Destroy development environment
+./destroy-azure-resources.sh dev
 
-# Redis connection
-redis-url: rediss://default:{key}@{cache}.redis.cache.windows.net:6380
+# Destroy production environment
+./destroy-azure-resources.sh prod
 
-# JWT secrets (generate strong random strings)
-jwt-access-secret: {random-string-min-32-chars}
-jwt-refresh-secret: {random-string-min-32-chars}
+# Check if resource group exists
+az group exists --name afl-predictor-rg-dev
 ```
 
-## 🔄 Deployment Process
+## 🔐 Security Configuration
 
-### Using Terraform (Recommended)
+### Key Vault Secrets
+All sensitive data is stored in Azure Key Vault:
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `JWT_ACCESS_SECRET` - JWT signing secret
+- `JWT_REFRESH_SECRET` - JWT refresh token secret
 
-1. **Initialize Terraform:**
-```bash
-cd infrastructure/terraform
-terraform init
-```
-
-2. **Plan deployment:**
-```bash
-terraform plan -var-file="environments/dev.tfvars"
-```
-
-3. **Apply configuration:**
-```bash
-terraform apply -var-file="environments/dev.tfvars"
-```
-
-### Using Azure CLI
-
-```bash
-# Create resource group
-az group create --name afl-predictor-rg --location australiasoutheast
-
-# Create App Service Plan
-az appservice plan create \
-  --name afl-predictor-asp-dev \
-  --resource-group afl-predictor-rg \
-  --sku S1 \
-  --is-linux
-
-# Create Frontend App Service
-az webapp create \
-  --name afl-predictor-frontend-dev \
-  --resource-group afl-predictor-rg \
-  --plan afl-predictor-asp-dev \
-  --runtime "NODE:20-lts"
-
-# Create Backend App Service
-az webapp create \
-  --name afl-predictor-backend-dev \
-  --resource-group afl-predictor-rg \
-  --plan afl-predictor-asp-dev \
-  --runtime "NODE:20-lts"
-```
-
-## 🚨 Emergency Rollback
-
-For production issues, use the rollback script:
-
-```bash
-# Rollback all services
-./scripts/rollback.sh prod all
-
-# Rollback frontend only
-./scripts/rollback.sh prod frontend
-
-# Rollback backend only
-./scripts/rollback.sh prod backend
-```
+### Access Control
+- App Services use Managed Identity for Key Vault access
+- PostgreSQL uses firewall rules (Azure services only)
+- All services enforce HTTPS only
 
 ## 📊 Monitoring
 
-### Application Insights Queries
+### Application Insights
+Configured alerts:
+- Error rate > 1%
+- Response time > 2 seconds
+- CPU usage > 80%
+- Memory usage > 80%
 
-```kusto
-// Response time percentiles
-requests
-| where timestamp > ago(1h)
-| summarize percentiles(duration, 50, 90, 99) by bin(timestamp, 5m)
+### View Metrics
+1. Azure Portal → Application Insights
+2. Select `afl-predictor-insights-dev`
+3. View Live Metrics or Logs
 
-// Error rate
-requests
-| where timestamp > ago(1h)
-| summarize 
-    total = count(), 
-    failures = countif(success == false) 
-by bin(timestamp, 5m)
-| extend errorRate = failures * 100.0 / total
-```
-
-### Alerts Configuration
-
-| Alert | Threshold | Severity | Action |
-|-------|-----------|----------|--------|
-| Response Time | > 2s avg | Warning | Email team |
-| Error Rate | > 5% | Critical | Email + SMS |
-| CPU Usage | > 80% | Warning | Auto-scale |
-| Memory Usage | > 85% | Warning | Investigate |
-
-## 💰 Cost Optimization
-
-### Development Environment
-- Use Basic/Standard tiers
-- Enable auto-shutdown during non-business hours
-- Share resources where possible
-
-### Production Environment
-- Use Reserved Instances (1-year: ~40% savings)
-- Enable auto-scaling instead of over-provisioning
-- Monitor and optimize based on actual usage
-
-### Estimated Monthly Costs
-
-#### Minimal Development (Recommended)
-| Service | Cost | Notes |
-|---------|------|-------|
-| App Service Plan (F1 Free) | $0 | Limited to 60 CPU min/day |
-| App Service Plan (B1 Basic) | $13 | Better performance option |
-| Local Docker PostgreSQL | $0 | Run locally |
-| Local Docker Redis | $0 | Run locally |
-| Application Insights | $0 | 5GB free tier |
-| **Total** | **$0-13** | Hybrid local/cloud |
-
-#### Full Azure Development
-| Service | Cost | Notes |
-|---------|------|-------|
-| App Service Plan (B1) | $13 | Basic tier |
-| PostgreSQL (B1ms) | $15 | Smallest burstable |
-| Redis Cache (C0) | $16 | 250MB cache |
-| Application Insights | $0 | Free tier |
-| Key Vault | $0 | Minimal usage |
-| **Total** | **$44** | All services in Azure |
-
-#### Production Environment
-| Service | Cost | Notes |
-|---------|------|-------|
-| App Service Plan (S1) | $70 | Standard tier, auto-scale |
-| PostgreSQL (B2s) | $35 | 2 vCores, production-ready |
-| Redis Cache (C1) | $50 | 1GB cache |
-| Application Insights | $10 | ~10GB ingestion |
-| Key Vault | $5 | Standard operations |
-| **Total** | **$170** | Production-grade |
-
-## 🔒 Security Checklist
-
-- [ ] HTTPS enforced on all services
-- [ ] Database SSL required
-- [ ] Secrets in Key Vault only
-- [ ] Managed identities for service auth
-- [ ] Network security groups configured
-- [ ] Regular security scanning enabled
-- [ ] Backup encryption enabled
-- [ ] Audit logging enabled
-
-## 📚 Additional Resources
-
-- [Azure App Service Documentation](https://docs.microsoft.com/azure/app-service/)
-- [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
-- [Azure DevOps Pipelines](https://docs.microsoft.com/azure/devops/pipelines/)
-- [Azure Cost Management](https://azure.microsoft.com/pricing/calculator/)
-
-## 🆘 Troubleshooting
+## 🚨 Troubleshooting
 
 ### Common Issues
 
-1. **Deployment fails with "Resource already exists"**
-   - Check if resource was created manually
-   - Import existing resource: `terraform import azurerm_resource_group.main /subscriptions/{id}/resourceGroups/afl-predictor-rg`
+**Issue: Resource group already exists**
+```bash
+# Import existing resource group
+terraform import azurerm_resource_group.main \
+  "/subscriptions/{subscription-id}/resourceGroups/afl-predictor-rg-dev"
+```
 
-2. **App Service won't start**
-   - Check Application Insights for errors
-   - Verify environment variables in App Service Configuration
-   - Check deployment logs in Kudu console
+**Issue: High costs**
+```bash
+# Immediately stop services
+az webapp stop --name afl-predictor-frontend-dev --resource-group afl-predictor-rg-dev
+az postgres flexible-server stop --name afl-predictor-db-dev --resource-group afl-predictor-rg-dev
 
-3. **Database connection fails**
-   - Verify firewall rules allow App Service IPs
-   - Check SSL enforcement settings
-   - Verify connection string format
+# Then destroy resources
+./destroy-azure-resources.sh dev
+```
 
-4. **High costs**
-   - Review Application Insights for usage patterns
-   - Consider scaling down during low usage
-   - Enable auto-scaling instead of fixed high tier
+**Issue: Deployment fails**
+1. Check GitHub Actions logs
+2. Verify Azure credentials are set
+3. Ensure all required secrets are configured
 
-## 📞 Support
+## 📝 Environment Variables
 
-For infrastructure issues:
-1. Check Application Insights for errors
-2. Review deployment logs
-3. Contact DevOps team
-4. Escalate to Azure Support if needed
+### Required GitHub Secrets
+- `AZURE_CREDENTIALS` - Service principal JSON (required)
+- `DB_ADMIN_USERNAME` - Database admin (optional, defaults to 'afladmin')
+- `DB_ADMIN_PASSWORD` - Database password (optional for dev)
+- `JWT_ACCESS_SECRET` - JWT secret (optional for dev)
+- `JWT_REFRESH_SECRET` - JWT refresh secret (optional for dev)
+- `ALERT_EMAIL` - Alert email address (optional)
+
+### Terraform Variables
+See `variables.tf` for all available variables. Key ones:
+- `environment` - dev or prod
+- `location` - Azure region (default: Australia Southeast)
+- `project_name` - Project prefix (default: afl-predictor)
+
+## 🔄 CI/CD Pipeline
+
+### GitHub Actions Workflow
+Located at `.github/workflows/ci-cd.yml`
+
+**Pipeline stages:**
+1. **Test** - Runs on all branches
+2. **Deploy-Dev** - Runs on push to `develop`
+3. **Deploy-Prod** - Runs on push to `main` (requires approval)
+
+### Manual Deployment
+If you need to deploy manually:
+```bash
+# Login to Azure
+az login
+
+# Set subscription
+az account set --subscription "your-subscription-id"
+
+# Run deployment
+cd infrastructure/terraform
+terraform init
+terraform apply -var-file="environments/dev.tfvars"
+```
+
+## 📚 Additional Resources
+
+- [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
+- [Azure App Service Documentation](https://docs.microsoft.com/azure/app-service/)
+- [GitHub Actions Documentation](https://docs.github.com/actions)
+
+## ⚠️ Important Notes
+
+1. **Always destroy production** when not actively needed (saves $530/month)
+2. **Use development environment** for all testing ($44/month)
+3. **Monitor costs daily** in Azure Cost Management
+4. **Set budget alerts** to avoid surprises
+5. **Use local Docker** for databases during development when possible
+
+---
+
+*Last Updated: August 2025*
+*Environment-specific resource groups implemented to prevent conflicts*

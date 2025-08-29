@@ -1,7 +1,8 @@
 # Deployment Strategy - AFL Data Capture Platform
 
 ## Current Situation
-⚠️ **WARNING**: Production infrastructure is currently deployed costing **$530/month**!
+✅ **Development environment deployed** - Costing ~**$44/month**
+✅ **Production infrastructure removed** - Saving **$530/month**
 
 ## Branch Strategy
 
@@ -25,28 +26,13 @@
   - Redis: C1 Standard ($120/month)
   - Retention: 90 days logs
 
-## IMMEDIATE ACTIONS REQUIRED
+## Current Deployment Status
 
-### 1. Destroy Expensive Production Resources
-```bash
-cd infrastructure/scripts
-./destroy-infrastructure.sh prod
-```
-This will save you **$530/month** immediately!
-
-### 2. Create Development Branch
-```bash
-# Create and switch to develop branch
-git checkout -b develop
-
-# Push to trigger dev deployment
-git push origin develop
-```
-
-### 3. Update Default Branch (GitHub)
-1. Go to: https://github.com/ceej23/afl-data-capture/settings
-2. Change default branch from `main` to `develop`
-3. This prevents accidental production deployments
+### ✅ Completed Actions
+1. **Development branch created** - `develop` branch is active
+2. **Dev environment deployed** - Running on Azure with F1 tier
+3. **Production resources removed** - Saving $530/month
+4. **CI/CD pipeline working** - Automatic deployments to dev on push
 
 ## Recommended Workflow
 
@@ -124,22 +110,30 @@ cd infrastructure/scripts
 4. **MONITOR COSTS DAILY** - Azure can surprise you with costs
 5. **SET BUDGETS** - Configure Azure budget alerts
 
-## Current Status & Next Steps
+## Current URLs
 
-### Immediate (TODAY):
-1. ❗ Run destroy script for production: `./destroy-infrastructure.sh prod`
-2. Create develop branch: `git checkout -b develop`
-3. Push to develop to create cheap dev environment
+### Development Environment
+- **Frontend**: https://afl-predictor-frontend-dev.azurewebsites.net
+- **Backend**: https://afl-predictor-backend-dev.azurewebsites.net
+- **Resource Group**: afl-predictor-rg-dev
 
-### Tomorrow:
-1. Verify production resources are destroyed
-2. Check Azure cost analysis
-3. Configure budget alerts
+## Next Steps
 
-### This Week:
-1. Test application in dev environment
-2. Optimize for free tier if possible
-3. Document any additional cost savings
+### Development Phase (Current)
+1. Build application features on `develop` branch
+2. Test in dev environment
+3. Keep costs under $50/month
+
+### Pre-Production Phase (When Ready)
+1. Feature freeze on `develop`
+2. Create staging environment if needed
+3. Performance testing
+
+### Production Launch (When Product Ready)
+1. Merge `develop` to `main`
+2. Deploy production infrastructure
+3. Monitor costs daily
+4. Destroy if not actively used
 
 ## Questions to Answer
 
