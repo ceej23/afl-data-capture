@@ -1,0 +1,238 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  TERRAFORM_VERSION: '1.5.7'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci --prefix frontend
+          npm ci --prefix backend
+          npm ci --prefix shared
+      
+      - name: Run linters
+        run: |
+          npm run lint --prefix frontend || true
+          npm run lint --prefix backend || true
+      
+      - name: Run tests
+        run: |
+          npm test --prefix frontend
+          npm test --prefix backend
+      
+      - name: Build applications
+        run: |
+          npm run build --prefix frontend
+          npm run build --prefix backend
+
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Terraform Init
+        run: |
+          cd infrastructure/terraform
+          terraform init
+      
+      - name: Terraform Format Check
+        run: |
+          cd infrastructure/terraform
+          terraform fmt -check
+      
+      - name: Terraform Plan
+        run: |
+          cd infrastructure/terraform
+          terraform plan -var-file=environments/dev.tfvars -out=tfplan
+      
+      - name: Upload Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: infrastructure/terraform/tfplan
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: development
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Deploy Infrastructure
+        run: |
+          cd infrastructure/terraform
+          terraform init
+          terraform apply -var-file=environments/dev.tfvars -auto-approve
+      
+      - name: Build Applications
+        run: |
+          npm ci --prefix frontend
+          npm ci --prefix backend
+          npm run build --prefix frontend
+          npm run build --prefix backend
+      
+      - name: Deploy Frontend
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: afl-data-capture-frontend-dev
+          package: ./frontend
+      
+      - name: Deploy Backend
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: afl-data-capture-backend-dev
+          package: ./backend
+      
+      - name: Run Smoke Tests
+        run: |
+          sleep 30
+          curl -f https://afl-data-capture-frontend-dev.azurewebsites.net || exit 1
+          curl -f https://afl-data-capture-backend-dev.azurewebsites.net/health || exit 1
+
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Deploy Infrastructure
+        run: |
+          cd infrastructure/terraform
+          terraform init
+          terraform apply -var-file=environments/prod.tfvars -auto-approve
+      
+      - name: Build Applications
+        run: |
+          npm ci --prefix frontend
+          npm ci --prefix backend
+          npm run build --prefix frontend
+          npm run build --prefix backend
+      
+      - name: Deploy to Staging Slot
+        run: |
+          az webapp deployment slot swap \
+            --resource-group afl-data-capture-prod \
+            --name afl-data-capture-frontend-prod \
+            --slot staging \
+            --action preview
+          
+          az webapp deployment slot swap \
+            --resource-group afl-data-capture-prod \
+            --name afl-data-capture-backend-prod \
+            --slot staging \
+            --action preview
+      
+      - name: Run Smoke Tests on Staging
+        run: |
+          sleep 30
+          curl -f https://afl-data-capture-frontend-prod-staging.azurewebsites.net || exit 1
+          curl -f https://afl-data-capture-backend-prod-staging.azurewebsites.net/health || exit 1
+      
+      - name: Swap to Production
+        run: |
+          az webapp deployment slot swap \
+            --resource-group afl-data-capture-prod \
+            --name afl-data-capture-frontend-prod \
+            --slot staging
+          
+          az webapp deployment slot swap \
+            --resource-group afl-data-capture-prod \
+            --name afl-data-capture-backend-prod \
+            --slot staging
+      
+      - name: Verify Production
+        run: |
+          sleep 30
+          curl -f https://afl-data-capture-frontend-prod.azurewebsites.net || exit 1
+          curl -f https://afl-data-capture-backend-prod.azurewebsites.net/health || exit 1
+
+  cleanup:
+    name: Cleanup Old Resources
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Cleanup Old Deployments
+        run: |
+          # Add cleanup scripts here
+          echo "Cleanup task placeholder"

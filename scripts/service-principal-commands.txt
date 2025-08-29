@@ -1,0 +1,39 @@
+# Azure Service Principal Setup Commands
+# Run these commands in your terminal where Azure CLI is installed
+
+# 1. Login to Azure
+az login
+
+# 2. Set subscription
+az account set --subscription "c6fdd64b-f4ef-404f-aa8d-2b013bcd03ee"
+
+# 3. Create service principal and save output
+az ad sp create-for-rbac \
+  --name "afl-data-capture-sp" \
+  --role contributor \
+  --scopes "/subscriptions/c6fdd64b-f4ef-404f-aa8d-2b013bcd03ee" \
+  --sdk-auth
+
+# The output will look like this:
+# {
+#   "clientId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+#   "clientSecret": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+#   "subscriptionId": "c6fdd64b-f4ef-404f-aa8d-2b013bcd03ee",
+#   "tenantId": "51e77625-3a01-45a4-9802-5285304ceb71"
+# }
+
+# 4. Copy the ENTIRE JSON output above
+
+# 5. Go to GitHub secrets page:
+#    https://github.com/ceej23/afl-data-capture/settings/secrets/actions
+
+# 6. Click "New repository secret"
+
+# 7. Name: AZURE_CREDENTIALS
+
+# 8. Value: Paste the entire JSON from step 3
+
+# 9. Click "Add secret"
+
+# Alternative: If you want to verify the service principal was created:
+az ad sp list --display-name "afl-data-capture-sp" --output table
