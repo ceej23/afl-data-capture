@@ -73,12 +73,9 @@ resource "azurerm_linux_web_app" "frontend" {
   
   https_only = true
   
-  # Deployment slot for staging
-  dynamic "sticky_app_setting_names" {
-    for_each = var.environment == "prod" ? [1] : []
-    content {
-      app_setting_names = ["NODE_ENV", "NEXT_PUBLIC_API_URL"]
-    }
+  # Sticky settings configuration
+  sticky_settings {
+    app_setting_names = var.environment == "prod" ? ["NODE_ENV", "NEXT_PUBLIC_API_URL"] : []
   }
   
   tags = var.tags

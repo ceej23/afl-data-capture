@@ -50,7 +50,7 @@ resource "azurerm_redis_cache" "main" {
   
   redis_configuration {
     maxmemory_policy = "allkeys-lru"
-    enable_authentication = true
+    authentication_enabled = true
   }
   
   tags = var.tags
