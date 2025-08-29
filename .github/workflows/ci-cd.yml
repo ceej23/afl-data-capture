@@ -174,20 +174,20 @@ jobs:
       - name: Deploy Frontend
         uses: azure/webapps-deploy@v3
         with:
-          app-name: afl-data-capture-frontend-dev
+          app-name: afl-predictor-frontend-dev
           package: ./frontend
       
       - name: Deploy Backend
         uses: azure/webapps-deploy@v3
         with:
-          app-name: afl-data-capture-backend-dev
+          app-name: afl-predictor-backend-dev
           package: ./backend
       
       - name: Run Smoke Tests
         run: |
           sleep 30
-          curl -f https://afl-data-capture-frontend-dev.azurewebsites.net || exit 1
-          curl -f https://afl-data-capture-backend-dev.azurewebsites.net/health || exit 1
+          curl -f https://afl-predictor-frontend-dev.azurewebsites.net || exit 1
+          curl -f https://afl-predictor-backend-dev.azurewebsites.net/health || exit 1
 
   deploy-prod:
     name: Deploy to Production
@@ -336,40 +336,40 @@ jobs:
       - name: Deploy to Staging Slot
         run: |
           az webapp deployment slot swap \
-            --resource-group afl-data-capture-prod \
-            --name afl-data-capture-frontend-prod \
+            --resource-group afl-predictor-rg \
+            --name afl-predictor-frontend-prod \
             --slot staging \
             --action preview
           
           az webapp deployment slot swap \
-            --resource-group afl-data-capture-prod \
-            --name afl-data-capture-backend-prod \
+            --resource-group afl-predictor-rg \
+            --name afl-predictor-backend-prod \
             --slot staging \
             --action preview
       
       - name: Run Smoke Tests on Staging
         run: |
           sleep 30
-          curl -f https://afl-data-capture-frontend-prod-staging.azurewebsites.net || exit 1
-          curl -f https://afl-data-capture-backend-prod-staging.azurewebsites.net/health || exit 1
+          curl -f https://afl-predictor-frontend-prod-staging.azurewebsites.net || exit 1
+          curl -f https://afl-predictor-backend-prod-staging.azurewebsites.net/health || exit 1
       
       - name: Swap to Production
         run: |
           az webapp deployment slot swap \
-            --resource-group afl-data-capture-prod \
-            --name afl-data-capture-frontend-prod \
+            --resource-group afl-predictor-rg \
+            --name afl-predictor-frontend-prod \
             --slot staging
           
           az webapp deployment slot swap \
-            --resource-group afl-data-capture-prod \
-            --name afl-data-capture-backend-prod \
+            --resource-group afl-predictor-rg \
+            --name afl-predictor-backend-prod \
             --slot staging
       
       - name: Verify Production
         run: |
           sleep 30
-          curl -f https://afl-data-capture-frontend-prod.azurewebsites.net || exit 1
-          curl -f https://afl-data-capture-backend-prod.azurewebsites.net/health || exit 1
+          curl -f https://afl-predictor-frontend-prod.azurewebsites.net || exit 1
+          curl -f https://afl-predictor-backend-prod.azurewebsites.net/health || exit 1
 
   cleanup:
     name: Cleanup Old Resources
