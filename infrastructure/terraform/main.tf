@@ -8,12 +8,13 @@ terraform {
     }
   }
   
-  backend "azurerm" {
-    resource_group_name  = "afl-predictor-terraform"
-    storage_account_name = "aflpredictortfstate"
-    container_name      = "tfstate"
-    key                 = "terraform.tfstate"
-  }
+  # Backend configuration - uncomment after running setup-terraform-backend.sh
+  # backend "azurerm" {
+  #   resource_group_name  = "afl-data-capture-terraform"
+  #   storage_account_name = "afldatacapturetfstate"
+  #   container_name      = "tfstate"
+  #   key                 = "terraform.tfstate"
+  # }
 }
 
 provider "azurerm" {
