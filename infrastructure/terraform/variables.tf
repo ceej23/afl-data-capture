@@ -99,6 +99,7 @@ variable "jwt_refresh_secret" {
 variable "alert_email" {
   description = "Email address for alerts"
   type        = string
+  default     = "alerts@afl-data-capture.com"
 }
 
 # Tags

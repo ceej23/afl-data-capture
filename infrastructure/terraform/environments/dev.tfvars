@@ -14,6 +14,9 @@ redis_family   = "C"
 redis_sku      = "Basic"
 redis_capacity = 0  # C0 - 250MB cache, $16/month
 
+# Monitoring
+alert_email = "dev-alerts@afl-data-capture.com"
+
 # Tags
 tags = {
   Project     = "AFL Predictor"

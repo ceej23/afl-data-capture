@@ -14,6 +14,9 @@ redis_family   = "C"
 redis_sku      = "Standard"
 redis_capacity = 1
 
+# Monitoring
+alert_email = "alerts@afl-data-capture.com"
+
 # Tags
 tags = {
   Project     = "AFL Predictor"
