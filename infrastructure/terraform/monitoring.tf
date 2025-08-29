@@ -208,9 +208,10 @@ resource "azurerm_monitor_autoscale_setting" "main" {
   
   notification {
     email {
-      send_to_subscription_administrator    = true
-      send_to_subscription_co_administrator = true
-      custom_emails                         = [var.alert_email]
+      # Classic administrators retired April 2024 - can't send to admin/co-admin anymore
+      # send_to_subscription_administrator    = true
+      # send_to_subscription_co_administrator = true
+      custom_emails = [var.alert_email]
     }
   }
   

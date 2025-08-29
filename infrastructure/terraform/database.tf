@@ -14,7 +14,8 @@ resource "azurerm_postgresql_flexible_server" "main" {
   backup_retention_days        = var.environment == "prod" ? 30 : 7
   geo_redundant_backup_enabled = var.environment == "prod" ? true : false
   
-  zone = var.environment == "prod" ? "1" : null
+  # Availability zones not supported in Australia Southeast for this subscription
+  # zone = var.environment == "prod" ? "1" : null
   
   tags = var.tags
 }
@@ -45,7 +46,7 @@ resource "azurerm_redis_cache" "main" {
   family              = var.redis_family
   sku_name            = var.redis_sku
   
-  enable_non_ssl_port = var.environment == "dev" ? true : false
+  non_ssl_port_enabled = var.environment == "dev" ? true : false
   minimum_tls_version = "1.2"
   
   redis_configuration {
