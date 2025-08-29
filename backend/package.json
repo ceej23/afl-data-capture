@@ -12,8 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --ext .ts",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist node_modules",
-    "prepare": "husky"
+    "clean": "rm -rf dist node_modules"
   },
   "keywords": [
     "afl",
