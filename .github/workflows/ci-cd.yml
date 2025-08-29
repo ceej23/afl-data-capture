@@ -248,6 +248,20 @@ jobs:
           terraform import azurerm_service_plan.main \
             "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Web/serverFarms/afl-predictor-asp-prod" || true
           
+          # Web Apps
+          terraform import azurerm_linux_web_app.frontend \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Web/sites/afl-predictor-frontend-prod" || true
+          
+          terraform import azurerm_linux_web_app.backend \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Web/sites/afl-predictor-backend-prod" || true
+          
+          # Staging Slots (if they exist)
+          terraform import 'azurerm_linux_web_app_slot.frontend_staging[0]' \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Web/sites/afl-predictor-frontend-prod/slots/staging" || true
+          
+          terraform import 'azurerm_linux_web_app_slot.backend_staging[0]' \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Web/sites/afl-predictor-backend-prod/slots/staging" || true
+          
           # Application Insights
           terraform import azurerm_application_insights.main \
             "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/components/afl-predictor-insights-prod" || true
