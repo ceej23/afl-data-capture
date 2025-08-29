@@ -61,8 +61,8 @@ jobs:
       
       - name: Run tests
         run: |
-          npm test --prefix frontend
-          npm test --prefix backend
+          npm test --prefix frontend -- run
+          npm test --prefix backend -- run
       
       - name: Build applications
         run: |
