@@ -260,6 +260,41 @@ jobs:
           terraform import azurerm_postgresql_flexible_server.main \
             "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/afl-predictor-db-prod" || true
           
+          # PostgreSQL Database
+          terraform import azurerm_postgresql_flexible_server_database.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/afl-predictor-db-prod/databases/aflpredictor" || true
+          
+          # PostgreSQL Firewall Rule
+          terraform import azurerm_postgresql_flexible_server_firewall_rule.allow_azure \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/afl-predictor-db-prod/firewallRules/AllowAzureServices" || true
+          
+          # Key Vault Secrets
+          terraform import azurerm_key_vault_secret.redis_url \
+            "https://afl-predictor-vault-prod.vault.azure.net/secrets/redis-url/7a6fe093b2ba499d9d80c6cb07bf2430" || true
+          
+          terraform import azurerm_key_vault_secret.jwt_access_secret \
+            "https://afl-predictor-vault-prod.vault.azure.net/secrets/jwt-access-secret/52464d6900f7467da44af7019a4df099" || true
+          
+          terraform import azurerm_key_vault_secret.jwt_refresh_secret \
+            "https://afl-predictor-vault-prod.vault.azure.net/secrets/jwt-refresh-secret/cf6dd4d5dc95440aa4e7ddf55a65568d" || true
+          
+          # Monitor Alerts
+          terraform import azurerm_monitor_metric_alert.cpu_usage \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/metricAlerts/afl-predictor-cpu-alert-prod" || true
+          
+          terraform import azurerm_monitor_metric_alert.memory_usage \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/metricAlerts/afl-predictor-memory-alert-prod" || true
+          
+          terraform import azurerm_monitor_metric_alert.response_time \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/metricAlerts/afl-predictor-response-time-alert-prod" || true
+          
+          terraform import azurerm_monitor_metric_alert.error_rate \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/metricAlerts/afl-predictor-error-rate-alert-prod" || true
+          
+          # Log Analytics Workspace
+          terraform import azurerm_log_analytics_workspace.main \
+            "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.OperationalInsights/workspaces/afl-predictor-logs-prod" || true
+          
           # Apply with refresh to sync state
           terraform apply -var-file=environments/prod.tfvars -auto-approve -refresh=true
       
