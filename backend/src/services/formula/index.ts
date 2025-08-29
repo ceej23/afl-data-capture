@@ -7,12 +7,12 @@ const fastify = Fastify({
 });
 
 // Health check
-fastify.get('/health', async (request, reply) => {
+fastify.get('/health', async () => {
   return { status: 'healthy', service: 'formula' };
 });
 
 // Get all formulas for a user
-fastify.get('/formulas', async (request, reply) => {
+fastify.get('/formulas', async () => {
   // TODO: Add authentication middleware
   // TODO: Get userId from JWT token
   const userId = 'temp-user-id';
@@ -32,7 +32,7 @@ fastify.get('/formulas', async (request, reply) => {
 });
 
 // Create a new formula
-fastify.post('/formulas', async (request, reply) => {
+fastify.post('/formulas', async (request) => {
   // TODO: Add validation with Zod
   // TODO: Add authentication
   const { name, description, metrics } = request.body as any;

@@ -14,7 +14,7 @@ const fastify = Fastify({
 });
 
 // Health check endpoint
-fastify.get('/health', async (request, reply) => {
+fastify.get('/health', async () => {
   return {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -24,7 +24,7 @@ fastify.get('/health', async (request, reply) => {
 });
 
 // Root endpoint
-fastify.get('/', async (request, reply) => {
+fastify.get('/', async () => {
   return {
     name: 'AFL Data Capture API',
     version: '0.1.0',
