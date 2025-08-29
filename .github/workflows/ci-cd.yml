@@ -278,6 +278,9 @@ jobs:
           terraform import azurerm_key_vault_secret.jwt_refresh_secret \
             "https://afl-predictor-vault-prod.vault.azure.net/secrets/jwt-refresh-secret/cf6dd4d5dc95440aa4e7ddf55a65568d" || true
           
+          terraform import azurerm_key_vault_secret.database_url \
+            "https://afl-predictor-vault-prod.vault.azure.net/secrets/database-url/c447ea2e8fd34800a08fbd17fd57d8be" || true
+          
           # Monitor Alerts
           terraform import azurerm_monitor_metric_alert.cpu_usage \
             "/subscriptions/${{ fromJSON(secrets.AZURE_CREDENTIALS).subscriptionId }}/resourceGroups/afl-predictor-rg/providers/Microsoft.Insights/metricAlerts/afl-predictor-cpu-alert-prod" || true
